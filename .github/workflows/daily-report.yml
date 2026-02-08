@@ -1,0 +1,64 @@
+name: Daily Report
+
+on:
+  workflow_dispatch: {}
+  schedule:
+    # 每天自动运行一次（UTC时间）
+    - cron: "30 16 * * *"
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-publish:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set date (America/Los_Angeles)
+        run: |
+          echo "DATE=$(TZ=America/Los_Angeles date +'%Y-%m-%d')" >> $GITHUB_ENV
+
+      # 这里先生成一个测试HTML（确认流程通）
+      # 后面我会帮你替换成真实日报生成
+      - name: Generate demo report
+        run: |
+          mkdir -p output
+          cat > output/index.html <<'HTML'
+          <!doctype html>
+          <html>
+            <head>
+              <meta charset="utf-8">
+              <title>Daily Report</title>
+            </head>
+            <body style="font-family: Arial;">
+              <h1>Daily Market Report</h1>
+              <p>This is an auto-generated report from GitHub Actions.</p>
+            </body>
+          </html>
+          HTML
+
+      - name: Publish report to repo
+        run: |
+          mkdir -p "reports/${DATE}"
+          mkdir -p "reports/latest"
+
+          cp output/index.html "reports/${DATE}/index.html"
+          cp output/index.html "reports/latest/index.html"
+
+      - name: Commit & push
+        run: |
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
+
+          git add reports
+
+          if git diff --cached --quiet; then
+            echo "No changes"
+            exit 0
+          fi
+
+          git commit -m "Daily report ${DATE}"
+          git push
